@@ -4,8 +4,8 @@
  */
 
 import { motion, useScroll, useTransform, useSpring, useMotionValue } from "motion/react";
-import { Mic2, Radio, Github, Twitter, Linkedin, ArrowUpRight, Play, Volume2, Zap, Target, Layers, Music, Activity } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
+import { Mic2, Radio, Github, Twitter, Linkedin, ArrowUpRight, Play, Volume2, Zap, Target, Layers, Music, Activity, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
+import React, { useRef, useState, useEffect } from "react";
 
 // Custom Cursor Component
 const CustomCursor = () => {
@@ -34,37 +34,60 @@ const CustomCursor = () => {
 const AudioPlayer = ({ artistName }: { artistName: string }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
-  useEffect(() => {
-    let interval: any;
-    if (isPlaying) {
-      interval = setInterval(() => {
-        setProgress((prev) => (prev >= 100 ? 0 : prev + 1));
-      }, 100);
+  const togglePlay = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card expansion when clicking play
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play().catch(() => {
+          console.log("Audio play failed - likely needs user interaction first or source issue");
+        });
+      }
+      setIsPlaying(!isPlaying);
     }
-    return () => clearInterval(interval);
-  }, [isPlaying]);
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      const current = audioRef.current.currentTime;
+      const duration = audioRef.current.duration;
+      if (duration) {
+        setProgress((current / duration) * 100);
+      }
+    }
+  };
 
   return (
     <div className="mt-4 bg-black/40 backdrop-blur-sm p-3 border border-white/10 rounded-sm">
+      <audio 
+        ref={audioRef} 
+        src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" 
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={() => setIsPlaying(false)}
+      />
       <div className="flex items-center gap-3">
         <button 
-          onClick={() => setIsPlaying(!isPlaying)}
-          className="w-8 h-8 flex items-center justify-center bg-accent text-white rounded-full hover:scale-110 transition-transform"
+          onClick={togglePlay}
+          className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-accent text-white rounded-full hover:scale-110 transition-transform shadow-[0_0_15px_rgba(255,0,0,0.4)]"
         >
-          {isPlaying ? <Volume2 size={16} /> : <Play size={16} className="ml-0.5" />}
+          {isPlaying ? <Volume2 size={20} /> : <Play size={20} className="ml-1" />}
         </button>
         <div className="flex-grow">
-          <div className="h-1 bg-white/10 w-full rounded-full overflow-hidden">
+          <div className="h-1.5 bg-white/10 w-full rounded-full overflow-hidden">
             <motion.div 
               className="h-full bg-accent" 
               animate={{ width: `${progress}%` }}
               transition={{ type: "tween", ease: "linear" }}
             />
           </div>
-          <div className="flex justify-between mt-1">
-            <span className="text-[8px] font-mono text-slate-400 uppercase tracking-widest">Sample_Track.mp3</span>
-            <span className="text-[8px] font-mono text-slate-400">0:45</span>
+          <div className="flex justify-between mt-1.5">
+            <span className="text-[9px] font-mono text-slate-400 uppercase tracking-widest">{artistName.toLowerCase()}_beat.wav</span>
+            <span className="text-[9px] font-mono text-slate-400">
+              {audioRef.current ? `${Math.floor(audioRef.current.currentTime / 60)}:${Math.floor(audioRef.current.currentTime % 60).toString().padStart(2, '0')}` : '0:00'}
+            </span>
           </div>
         </div>
       </div>
@@ -138,9 +161,19 @@ const ARTISTS = [
 
 export default function App() {
   const containerRef = useRef(null);
+  const artistScrollRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [expandedArtist, setExpandedArtist] = useState<string | null>(null);
+  const [galleryExpanded, setGalleryExpanded] = useState(false);
   
+  const scrollArtists = (direction: 'left' | 'right') => {
+    if (artistScrollRef.current) {
+      const { scrollLeft, clientWidth } = artistScrollRef.current;
+      const scrollTo = direction === 'left' ? scrollLeft - 400 : scrollLeft + 400;
+      artistScrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
+    }
+  };
+
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end end"]
@@ -167,56 +200,32 @@ export default function App() {
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 atmosphere"></div>
         <div className="absolute inset-0 grid-bg opacity-10"></div>
-        
-        {/* Phonetic Particles (B, T, K, Pf) */}
-        <div className="absolute inset-0 overflow-hidden">
-          {['B', 'T', 'K', 'Pf', 'B', 'T', 'K', 'Pf'].map((p, i) => (
-            <div 
-              key={i} 
-              className="phonetic-particle"
-              style={{ 
-                top: `${Math.random() * 100}%`, 
-                left: `${Math.random() * 100}%`,
-                fontSize: `${Math.random() * 10 + 5}vw`,
-                animationDelay: `${i * 1.2}s`
-              }}
-            >
-              {p}
-            </div>
-          ))}
-        </div>
-
-        {/* Frequency Bars Background */}
-        <div className="absolute bottom-0 left-0 w-full h-1/3 flex items-end justify-around px-10 opacity-20">
-          {[...Array(40)].map((_, i) => (
-            <div 
-              key={i} 
-              className="frequency-bar"
-              style={{ 
-                height: `${Math.random() * 100 + 20}px`,
-                animationDelay: `${i * 0.05}s`
-              }}
-            />
-          ))}
-        </div>
-
         <div className="scanline"></div>
       </div>
 
       {/* Minimal Brutalist Nav */}
-      <nav className="fixed top-0 left-0 w-full z-50 p-6 md:p-10 flex justify-between items-start pointer-events-none">
+      <nav className="fixed top-0 left-0 w-full z-50 p-6 md:p-8 flex justify-between items-center pointer-events-none bg-black/40 backdrop-blur-md border-b border-white/5">
         <motion.div 
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           className="pointer-events-auto"
         >
           <div className="text-4xl font-impact tracking-tighter leading-none group cursor-pointer">
-            MBH<span className="text-accent">.</span>
+            MHB<span className="text-accent">.</span>
           </div>
         </motion.div>
         
+        <div className="hidden md:flex items-center gap-8 pointer-events-auto font-mono text-[10px] tracking-[0.3em] uppercase text-slate-400">
+          <a href="#home" className="hover:text-accent transition-colors">HOME</a>
+          <a href="#events" className="hover:text-accent transition-colors">EVENTS</a>
+          <a href="#artists" className="hover:text-accent transition-colors">ARTISTS</a>
+          <a href="#gallery" className="hover:text-accent transition-colors">GALLERY</a>
+          <a href="#videos" className="hover:text-accent transition-colors">VIDEOS</a>
+          <a href="#contact" className="hover:text-accent transition-colors">CONTACT</a>
+        </div>
+
         <div className="flex flex-col items-end gap-4 pointer-events-auto">
-          <button className="brutal-btn text-xs">
+          <button className="brutal-btn text-[10px] px-4 py-2">
             JOIN_THE_VOID
           </button>
         </div>
@@ -224,7 +233,7 @@ export default function App() {
 
       <main className="relative z-10">
         {/* Extreme Hero Section */}
-        <section className="relative h-screen flex items-center justify-center overflow-hidden">
+        <section id="home" className="relative h-screen flex items-center justify-center overflow-hidden">
           {/* Massive Background Text */}
           <motion.div 
             style={{ x: heroBgTextX }}
@@ -243,11 +252,11 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
               >
-                <span className="block text-[20vw] font-impact leading-[0.8] tracking-tighter text-accent">
-                  Mumbai 
+                <span className="block text-[15vw] md:text-[20vw] font-impact leading-[0.8] tracking-tighter text-accent">
+                  MUMBAI 
                 </span>
-                <span className="block text-[20vw] font-impact leading-[0.8] tracking-tighter text-white mt-[-2vw] glitch-text">
-                  Beatbox Hub
+                <span className="block text-[15vw] md:text-[20vw] font-impact leading-[0.8] tracking-tighter text-white mt-[-2vw] glitch-text">
+                  BEATBOX HUB
                 </span>
               </motion.div>
             </div>
@@ -257,7 +266,7 @@ export default function App() {
           <div className="absolute bottom-20 left-10 flex items-center gap-6">
             <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
             <div className="font-mono text-[10px] tracking-[0.5em] text-slate-500 uppercase">
-              //_VOCAL_ENGINE_ENGAGED_//
+              //_SYSTEM_ONLINE_//
             </div>
           </div>
 
@@ -272,7 +281,7 @@ export default function App() {
           </motion.div>
         </section>
 
-        {/* The "Frequency" Section - Chaotic Layout */}
+        {/* The "Frequency" Section - Chaotic Layout (Gully Manifesto) */}
         <section className="relative py-40 px-6 md:px-20 overflow-hidden">
           <div className="max-w-[1400px] mx-auto">
             <div className="flex flex-col md:flex-row gap-20 items-start">
@@ -298,12 +307,12 @@ export default function App() {
                   
                   <div className="mt-20 grid grid-cols-2 gap-10">
                     <div>
-                      <div className="text-4xl font-impact text-accent mb-2">200+</div>
-                      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Artists_Active</div>
+                      <div className="text-4xl font-impact text-accent mb-2">ESTD 2025</div>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Foundation_Year</div>
                     </div>
                     <div>
-                      <div className="text-4xl font-impact text-primary mb-2">50+</div>
-                      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Street_Jams</div>
+                      <div className="text-4xl font-impact text-primary mb-2">CITY MUMBAI</div>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Origin_Point</div>
                     </div>
                   </div>
                 </motion.div>
@@ -349,17 +358,58 @@ export default function App() {
           </div>
         </section>
 
+        {/* Events Section */}
+        <section id="events" className="relative py-32 px-6 md:px-20 bg-black border-y border-white/5">
+          <div className="max-w-[1400px] mx-auto">
+            <h2 className="text-8xl font-impact uppercase leading-none mb-16">UPCOMING_EVENTS</h2>
+            <div className="space-y-4">
+              {[
+                { date: 'APR 12', title: 'GULLY_BATTLE_VOL_4', location: 'Dharavi' },
+                { date: 'MAY 05', title: 'BEATBOX_WORKSHOP_101', location: 'Bandra' },
+                { date: 'JUN 20', title: 'MUMBAI_VOCAL_FEST', location: 'Juhu' },
+              ].map((event, i) => (
+                <div key={i} className="flex flex-col md:flex-row items-start md:items-center justify-between p-8 border border-white/10 hover:bg-accent hover:text-black transition-all group cursor-pointer">
+                  <div className="flex items-center gap-8">
+                    <span className="text-2xl font-mono text-accent group-hover:text-black">{event.date}</span>
+                    <h3 className="text-4xl font-impact uppercase">{event.title}</h3>
+                  </div>
+                  <span className="text-xl font-mono opacity-50 group-hover:opacity-100 mt-4 md:mt-0">{event.location}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* The "Artists" Section - Scrollable Cards with Audio Players */}
-        <section className="py-20 bg-white/5 relative overflow-hidden">
-          <div className="mb-20 px-6 md:px-20">
-            <h2 className="text-8xl font-impact uppercase leading-none mb-4">FEATURED_ARTISTS</h2>
-            <div className="flex items-center gap-4">
-              <div className="h-px flex-grow bg-white/20"></div>
-              <span className="text-accent font-mono text-sm tracking-[0.5em]">SONIC_ARCHITECTS</span>
+        <section id="artists" className="py-20 bg-white/5 relative overflow-hidden">
+          <div className="mb-20 px-6 md:px-20 flex flex-col md:flex-row justify-between items-end gap-8">
+            <div className="flex-grow">
+              <h2 className="text-8xl font-impact uppercase leading-none mb-4">ARTIST_PROFILES</h2>
+              <div className="flex items-center gap-4">
+                <div className="h-px flex-grow bg-white/20"></div>
+                <span className="text-accent font-mono text-sm tracking-[0.5em]">VOCAL_ARCHITECTS</span>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => scrollArtists('left')}
+                className="w-16 h-16 border-2 border-white flex items-center justify-center hover:bg-white hover:text-black transition-all"
+              >
+                <ChevronLeft size={32} />
+              </button>
+              <button 
+                onClick={() => scrollArtists('right')}
+                className="w-16 h-16 border-2 border-white flex items-center justify-center hover:bg-white hover:text-black transition-all"
+              >
+                <ChevronRight size={32} />
+              </button>
             </div>
           </div>
 
-          <div className="flex gap-8 overflow-x-auto pb-20 px-6 md:px-20 no-scrollbar snap-x snap-mandatory">
+          <div 
+            ref={artistScrollRef}
+            className="flex gap-8 overflow-x-auto pb-20 px-6 md:px-20 no-scrollbar snap-x snap-mandatory"
+          >
             {ARTISTS.map((artist, i) => (
               <motion.div 
                 key={i}
@@ -417,6 +467,84 @@ export default function App() {
           </div>
         </section>
 
+        {/* Gallery Section */}
+        <section id="gallery" className="py-32 px-6 md:px-20 bg-black">
+          <div className="max-w-[1400px] mx-auto">
+            <h2 className="text-8xl font-impact uppercase leading-none mb-16">GALLERY</h2>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[...Array(galleryExpanded ? 12 : 4)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: (i % 4) * 0.1 }}
+                  className="aspect-square overflow-hidden brutal-border group"
+                >
+                  <img 
+                    src={`https://picsum.photos/seed/gallery_${i}/600/600`} 
+                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-500" 
+                    alt={`Gallery ${i}`} 
+                    referrerPolicy="no-referrer"
+                  />
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="mt-16 text-center">
+              <button 
+                onClick={() => setGalleryExpanded(!galleryExpanded)}
+                className="brutal-btn"
+              >
+                {galleryExpanded ? 'SHOW_LESS' : 'VIEW_MORE'}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Videos Section */}
+        <section id="videos" className="py-32 px-6 md:px-20 bg-black">
+          <div className="max-w-[1400px] mx-auto">
+            <h2 className="text-8xl font-impact uppercase leading-none mb-16">LATEST_VIDEOS</h2>
+            <div className="aspect-video w-full brutal-border overflow-hidden bg-white/5">
+              <iframe 
+                width="100%" 
+                height="100%" 
+                src="https://www.youtube.com/embed/dQw4w9WgXcQ" 
+                title="YouTube video player" 
+                frameBorder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                allowFullScreen
+              ></iframe>
+            </div>
+          </div>
+        </section>
+
+        {/* Enter The Hub Section */}
+        <section id="hub" className="py-32 px-6 md:px-20 bg-white/5">
+          <div className="max-w-[1400px] mx-auto text-center">
+            <h2 className="text-7xl md:text-9xl font-impact uppercase leading-none mb-12">ENTER_THE_HUB</h2>
+            <p className="text-xl text-slate-400 font-light max-w-2xl mx-auto mb-16 uppercase tracking-widest">
+              Join the most explosive beatbox community in Mumbai. Connect, learn, and battle with the best.
+            </p>
+            
+            <div className="flex flex-wrap justify-center gap-8">
+              <a 
+                href="https://wa.me/yournumber" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="brutal-btn flex items-center gap-4 scale-110"
+              >
+                <MessageCircle size={24} />
+                WHATSAPP_COMMUNITY
+              </a>
+              <button className="px-12 py-4 border-4 border-white text-white font-impact text-2xl uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+                LATEST_VIDEOS
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* The "Weapon" CTA - Extreme Version */}
         <section className="py-60 relative flex items-center justify-center text-center px-6 overflow-hidden">
           <div className="absolute inset-0 z-0 opacity-20">
@@ -429,8 +557,8 @@ export default function App() {
               whileInView={{ scale: 1, opacity: 1 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-7xl md:text-[12rem] font-impact uppercase leading-[0.8] mb-10 text-outline-accent">
-                BECOME_THE<br /><span className="text-primary">WEAPON.</span>
+              <h2 className="text-7xl md:text-[12rem] font-impact uppercase leading-[0.8] mb-10 text-white">
+                BECOME THE<br /><span className="text-primary">WEAPON.</span>
               </h2>
               <div className="flex flex-wrap justify-center gap-10 mt-20">
                 <button className="brutal-btn scale-125">
